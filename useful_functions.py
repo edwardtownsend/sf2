@@ -8,12 +8,13 @@ from cued_sf2_lab.lbt import pot_ii
 from cued_sf2_lab.laplacian_pyramid import bpp, quantise
 from cued_sf2_lab.dwt import dwt, idwt
 
+# General functions
+def energy(X):
+    return np.sum(X ** 2.0)
+
 def X_quant_entropy(X, step_size=17):
     X_quant = quantise(X, 17)
     return bpp(X_quant) * X_quant.size
-
-def energy(X):
-    return np.sum(X ** 2.0)
 
 # LBT functions
 def dctbpp(Yr, N):
@@ -30,7 +31,7 @@ def dctbpp(Yr, N):
 
     return entropy_sum
 
-def gen_Y_quant_lbt(X, step_size, C, s):
+def gen_Y_quant_lbt(X, step_size, C, s, supp_comp_num=0):
     N = C.shape[0]
     Pf, Pr = pot_ii(N, s)
     t = np.s_[N//2:-N//2]
@@ -44,7 +45,7 @@ def gen_Y_quant_lbt(X, step_size, C, s):
 
     return Yq
 
-def gen_Z_quant_lbt(X, step_size, C, s):
+def gen_Z_quant_lbt(X, step_size, C, s, rise1_ratio=0.5, supp_comp_num=0):
     N = C.shape[0]
     Pf, Pr = pot_ii(N, s)
     t = np.s_[N//2:-N//2] 
@@ -54,7 +55,8 @@ def gen_Z_quant_lbt(X, step_size, C, s):
     Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
 
     Y = colxfm(colxfm(Xp, C).T, C).T
-    Yq = quantise(Y, step_size)
+    Y = suppress_components(Y, C.shape[0], supp_comp_num)
+    Yq = quantise(Y, step_size, step_size*rise1_ratio)
 
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
     Zp = Z.copy()
@@ -63,18 +65,18 @@ def gen_Z_quant_lbt(X, step_size, C, s):
 
     return Zp
 
-def compute_err_lbt(X, step_size, C, s):
-    Zp = gen_Z_quant_lbt(X, step_size, C, s)
+def compute_err_lbt(X, step_size, C, s, rise1_ratio=0.5, supp_comp_num=0):
+    Zp = gen_Z_quant_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
     return np.std(X - Zp)
 
-def find_step_equal_rms_lbt(X, C, s):
+def find_step_equal_rms_lbt(X, C, s, rise1_ratio=0.5, supp_comp_num=0):
     target_err = np.std(X - quantise(X, 17))
 
     # Binary search
     low, high = 15, 30
     while high - low > 0.1:
         mid = (low + high) / 2
-        err = compute_err_lbt(X, mid, C, s)
+        err = compute_err_lbt(X, mid, C, s, rise1_ratio, supp_comp_num)
 
         if err < target_err:
             low = mid
@@ -82,6 +84,54 @@ def find_step_equal_rms_lbt(X, C, s):
             high = mid
 
     return (low + high) / 2
+
+def suppress_components(Y, block_size, num_components):
+    """
+    Sets elements in Yq to zero in a zig-zag pattern based upon the JPEG documentation.
+
+    Algorithm:
+    The function iterates through the array Yq in a predefined pattern based on the direction:
+    - "left": moves leftwards
+    - "up": moves upwards
+    - "up_right": moves diagonally up-right
+    - "down_left": moves diagonally down-left
+
+    Each element visited in Yq is set to zero, modifies in place.
+    """
+    num_blocks = int(Y.shape[0] / block_size)
+    start_row = block_size - 1
+    start_col = block_size - 1
+    curr_row = start_row
+    curr_col = start_col
+    direction = "left"
+
+    for i in range(num_components):
+        for j in range(num_blocks):
+            for k in range(num_blocks):
+                Y[curr_row + j*block_size, curr_col + k*block_size] = 0
+                
+        if direction == "left":
+            curr_col -= 1
+            direction = "up_right"
+
+        elif direction == "up_right":
+            curr_row -= 1
+            curr_col += 1
+        if curr_col == start_col:
+            direction = "up"
+
+        elif direction == "up":
+            curr_row -= 1
+            direction = "down_left"
+                
+        elif direction == "down_left":
+            curr_row += 1
+            curr_col -= 1
+            if curr_row == start_row:
+                direction = "left"
+
+    return Y
+
 
 # DWT functions
 def nlevdwt(X, n):

@@ -7,13 +7,13 @@ from cued_sf2_lab.dct import colxfm, dct_ii, regroup
 from cued_sf2_lab.lbt import pot_ii
 from useful_functions import *
 
-def gen_lbt_equal_rms(X, block_size, s):
+def gen_lbt_equal_rms(X, block_size, s, rise1_ratio=0.5, supp_comp_num=0):
     if block_size <= 0 or (block_size & (block_size - 1)) != 0:
         return "Error the block size is not a power of two!"
 
     C = dct_ii(block_size)
-    step_size = find_step_equal_rms_lbt(X, C, s)
-    Yq = gen_Y_quant_lbt(X, step_size, C, s)
+    step_size = find_step_equal_rms_lbt(X, C, s, rise1_ratio, supp_comp_num)
+    Yq = gen_Y_quant_lbt(X, step_size, C, s, supp_comp_num)
     Yr = regroup(Yq, 4)
     Yr_ent = dctbpp(Yr, 16)
     comp_ratio =  X_quant_entropy(X) / Yr_ent
@@ -38,7 +38,6 @@ def gen_dwt_equal_mse(X, num_levels):
     for i in range(num_levels):
         step_sizes.append(step_sizes[0] * step_size_ratios[i+1])
     step_sizes_array = np.tile(np.array(step_sizes), (3, 1))
-    print(step_sizes_array)
 
     Y = nlevdwt(X, num_levels)
     Yq, Yq_ent_arr = quantdwt(Y, step_sizes_array)
