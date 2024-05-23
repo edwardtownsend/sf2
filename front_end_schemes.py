@@ -12,7 +12,7 @@ def gen_lbt(X, block_size, s):
         return "Error the block size is not a power of two!"
 
     C = dct_ii(block_size)
-    step_size = find_step_equal_rms(X, C, s)
+    step_size = find_step_equal_rms_lbt(X, C, s)
     Yq = gen_Y_quant_lbt(X, step_size, C, s)
     Yr = regroup(Yq, 4)
     Yr_ent = dctbpp(Yr, 16)

@@ -66,7 +66,7 @@ def compute_err_lbt(X, step_size, C, s):
     Zp = gen_Z_quant_lbt(X, step_size, C, s)
     return np.std(X - Zp)
 
-def find_step_equal_rms(X, C, s):
+def find_step_equal_rms_lbt(X, C, s):
     target_err = np.std(X - quantise(X, 17))
 
     # Binary search
@@ -81,3 +81,5 @@ def find_step_equal_rms(X, C, s):
             high = mid
 
     return (low + high) / 2
+
+
