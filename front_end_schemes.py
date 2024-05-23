@@ -1,4 +1,3 @@
-%matplotlib widget
 import warnings
 import inspect
 import matplotlib.pyplot as plt
@@ -14,7 +13,7 @@ def gen_lbt(X, block_size, s):
 
     C = dct_ii(block_size)
     step_size = find_step_equal_rms(X, C, s)
-    Yq = gen_Y_quant_lbt(X, step_size C, s)
+    Yq = gen_Y_quant_lbt(X, step_size, C, s)
     Yr = regroup(Yq, 4)
     Yr_ent = dctbpp(Yr, 16)
     comp_ratio =  X_quant_entropy(X) / Yr_ent

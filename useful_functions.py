@@ -1,4 +1,3 @@
-%matplotlib widget
 import warnings
 import inspect
 import matplotlib.pyplot as plt
