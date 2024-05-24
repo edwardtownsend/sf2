@@ -31,7 +31,7 @@ def dctbpp(Yr, N):
 
     return entropy_sum
 
-def gen_Y_quant_lbt(X, step_size, C, s, supp_comp_num=0):
+def gen_Y_quant_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num=0):
     N = C.shape[0]
     Pf, Pr = pot_ii(N, s)
     t = np.s_[N//2:-N//2]
@@ -42,7 +42,7 @@ def gen_Y_quant_lbt(X, step_size, C, s, supp_comp_num=0):
 
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size)
+    Yq = quantise(Y, step_size, rise1_ratio)
 
     return Yq
 
@@ -57,7 +57,7 @@ def gen_Z_quant_lbt(X, step_size, C, s, rise1_ratio=0.5, supp_comp_num=0):
 
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size, step_size*rise1_ratio)
+    Yq = quantise(Y, step_size, rise1_ratio)
 
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
     Zp = Z.copy()
@@ -99,8 +99,10 @@ def suppress_components(Y, block_size, num_components):
 
     Each element visited in Yq is set to zero, modifies in place.
     """
+    if num_components == 0:
+        return Y
+    
     num_blocks = int(Y.shape[0] / block_size)
-    print(num_blocks)
     start_row = block_size - 1
     start_col = block_size - 1
     curr_row = start_row

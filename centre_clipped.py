@@ -45,18 +45,23 @@ Can investigate further for LBT:
 
 
 fig, ax = plt.subplots()
-plot_image(suppress_components(lighthouse, 8, 5))
+plot_image(suppress_components(lighthouse, 8, 58))
 plt.show()
 
-
 X = lighthouse - 128.0
-supp_comp_nums = list(range(0, 63))
+supp_comp_nums = list(range(0, 63, 4))
 comp_ratios = []
 for i in supp_comp_nums:
     comp_ratios.append(gen_lbt_equal_rms(X, 8, np.sqrt(2), 0.5, i)[0])
+
+print(gen_lbt_equal_rms(X, 8, np.sqrt(2), 0.5)[0])
 
 plt.plot(supp_comp_nums, comp_ratios)
 plt.xlabel('Number of components suppressed per image')
 plt.ylabel('Compression Ratios')
 plt.title('Graph 2')
+plt.show()
+
+fig, ax = plt.subplots()
+plot_image(gen_lbt_equal_rms(X, 8, np.sqrt(2), 0.5, 58)[1])
 plt.show()
