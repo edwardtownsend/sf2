@@ -43,6 +43,12 @@ Can investigate further for LBT:
 
 # Suppressing highest horizontal/vertical frequency sub-images - could look in zig-zag manner as seen in JPEG standard in notebook 12
 
+
+fig, ax = plt.subplots()
+plot_image(suppress_components(lighthouse, 8, 5))
+plt.show()
+
+
 X = lighthouse - 128.0
 supp_comp_nums = list(range(0, 63))
 comp_ratios = []

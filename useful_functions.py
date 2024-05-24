@@ -41,6 +41,7 @@ def gen_Y_quant_lbt(X, step_size, C, s, supp_comp_num=0):
     Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
 
     Y = colxfm(colxfm(Xp, C).T, C).T
+    Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise(Y, step_size)
 
     return Yq
@@ -99,6 +100,7 @@ def suppress_components(Y, block_size, num_components):
     Each element visited in Yq is set to zero, modifies in place.
     """
     num_blocks = int(Y.shape[0] / block_size)
+    print(num_blocks)
     start_row = block_size - 1
     start_col = block_size - 1
     curr_row = start_row
@@ -112,23 +114,38 @@ def suppress_components(Y, block_size, num_components):
                 
         if direction == "left":
             curr_col -= 1
-            direction = "up_right"
+
+            if curr_row == start_row:
+                direction = "up_right"
+            if curr_row == 0:
+                direction = "down_left"
 
         elif direction == "up_right":
             curr_row -= 1
             curr_col += 1
-        if curr_col == start_col:
-            direction = "up"
+
+            if curr_row == 0:
+                direction = "left"
+            elif curr_col == start_col:
+                direction = "up"
+
 
         elif direction == "up":
             curr_row -= 1
-            direction = "down_left"
-                
+            
+            if curr_col == start_col:
+                direction = "down_left"
+            if curr_col == 0:
+                direction = "up_right"
+
         elif direction == "down_left":
             curr_row += 1
             curr_col -= 1
+
             if curr_row == start_row:
                 direction = "left"
+            if curr_col == 0:
+                direction = "up"
 
     return Y
 
