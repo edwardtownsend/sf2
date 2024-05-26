@@ -16,7 +16,7 @@ def X_quant_entropy(X, step_size=17):
     X_quant = quantise(X, 17)
     return bpp(X_quant) * X_quant.size
 
-# LBT functions
+# DCT/LBT functions
 def dctbpp(Yr, N):
     m, n = Yr.shape
     if m % N != 0 or n % N != 0:
@@ -31,53 +31,59 @@ def dctbpp(Yr, N):
 
     return entropy_sum
 
-def gen_Y_quant_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num=0):
-    N = C.shape[0]
-    Pf, Pr = pot_ii(N, s)
-    t = np.s_[N//2:-N//2]
-
-    Xp = X.copy()
-    Xp[t, :] = colxfm(Xp[t, :], Pf)
-    Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
+def gen_Y_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    if s == None:
+        Xp = X
+    else:
+        N = C.shape[0]
+        Pf, Pr = pot_ii(N, s)
+        t = np.s_[N//2:-N//2]
+        Xp = X.copy()
+        Xp[t, :] = colxfm(Xp[t, :], Pf)
+        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
 
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size, rise1_ratio)
+    Yq = quantise(Y, step_size, rise1_ratio*step_size)
 
     return Yq
 
-def gen_Z_quant_lbt(X, step_size, C, s, rise1_ratio=0.5, supp_comp_num=0):
-    N = C.shape[0]
-    Pf, Pr = pot_ii(N, s)
-    t = np.s_[N//2:-N//2] 
-
-    Xp = X.copy()
-    Xp[t, :] = colxfm(Xp[t, :], Pf)
-    Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
+def gen_Z_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    if s == None:
+        Xp = X
+    else:
+        N = C.shape[0]
+        Pf, Pr = pot_ii(N, s)
+        t = np.s_[N//2:-N//2] 
+        Xp = X.copy()
+        Xp[t, :] = colxfm(Xp[t, :], Pf)
+        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
 
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size, rise1_ratio)
+    Yq = quantise(Y, step_size, rise1_ratio*step_size)
 
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
-    Zp = Z.copy()
-    Zp[:, t] = colxfm(Zp[:, t].T, Pr.T).T
-    Zp[t, :] = colxfm(Zp[t, :], Pr.T)
+    if s == None:
+        return Z
+    else:
+        Zp = Z.copy()
+        Zp[:, t] = colxfm(Zp[:, t].T, Pr.T).T
+        Zp[t, :] = colxfm(Zp[t, :], Pr.T)
+        return Zp
 
-    return Zp
-
-def compute_err_lbt(X, step_size, C, s, rise1_ratio=0.5, supp_comp_num=0):
-    Zp = gen_Z_quant_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
+def compute_err_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    Zp = gen_Z_quant_dct_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
     return np.std(X - Zp)
 
-def find_step_equal_rms_lbt(X, C, s, rise1_ratio=0.5, supp_comp_num=0):
+def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
     target_err = np.std(X - quantise(X, 17))
 
     # Binary search
     low, high = 15, 30
     while high - low > 0.1:
         mid = (low + high) / 2
-        err = compute_err_lbt(X, mid, C, s, rise1_ratio, supp_comp_num)
+        err = compute_err_dct_lbt(X, mid, C, s, rise1_ratio, supp_comp_num)
 
         if err < target_err:
             low = mid
