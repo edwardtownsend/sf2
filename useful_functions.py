@@ -12,9 +12,9 @@ from cued_sf2_lab.dwt import dwt, idwt
 def energy(X):
     return np.sum(X ** 2.0)
 
-def X_quant_entropy(X, step_size=17):
-    X_quant = quantise(X, 17)
-    return bpp(X_quant) * X_quant.size
+# Note: do not use entropy(X) for DCT/LBT
+def entropy(X):
+    return bpp(X) * X.size
 
 # DCT/LBT functions
 def dctbpp(Yr, N):
@@ -32,6 +32,11 @@ def dctbpp(Yr, N):
     return entropy_sum
 
 def gen_Y_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
     if s == None:
         Xp = X
     else:
@@ -49,6 +54,12 @@ def gen_Y_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
     return Yq
 
 def gen_Z_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
+    
     if s == None:
         Xp = X
     else:
@@ -62,8 +73,8 @@ def gen_Z_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise(Y, step_size, rise1_ratio*step_size)
-
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
+    
     if s == None:
         return Z
     else:
@@ -73,10 +84,20 @@ def gen_Z_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
         return Zp
 
 def compute_err_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
     Zp = gen_Z_quant_dct_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
-    return np.std(X - Zp)
+    return np.std(X-Zp)
 
 def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
     target_err = np.std(X - quantise(X, 17))
 
     # Binary search
@@ -177,9 +198,6 @@ def nlevidwt(Y, n):
 
     return X
 
-def entropy(X):
-    return bpp(X) * X.size
-
 def quantdwt(Y: np.ndarray, dwtstep: np.ndarray):
     Yq = Y.copy()
     dwtent = np.zeros(dwtstep.shape)
@@ -225,13 +243,40 @@ def impulse_energies(n_levels):
         Y[int(centre_pixel_2[0]), int(centre_pixel_2[1])] = 100
         Y[int(centre_pixel_3[0]), int(centre_pixel_3[1])] = 100 
 
-        Z0 = nlevidwt(Y, n_levels)  # Assuming nlevidwt is defined elsewhere
+        Z0 = nlevidwt(Y, n_levels) 
         layer_energies.append(energy(Z0))
     
     Y = np.zeros((256, 256))
-    centre_pixel = [(256 // (2 ** n_levels)) * 0.25, (256 // (2 ** n_levels)) * 0.25]
+    centre_pixel = [(256 // (2 ** (n_levels - 1))) * 0.25, (256 // (2 ** (n_levels - 1))) * 0.25]
     Y[int(centre_pixel[0]), int(centre_pixel[1])] = 100
-    Z0 = nlevidwt(Y, n_levels)  # Assuming nlevidwt is defined elsewhere
+    Z0 = nlevidwt(Y, n_levels) 
     layer_energies.append(energy(Z0))
 
     return layer_energies
+
+def compute_err_dwt(X, ss_arr, n_levels):
+    Y = nlevdwt(X, n_levels)
+    Yq = quantdwt(Y, ss_arr)[0]
+    Z = nlevidwt(Yq, n_levels)
+    
+    return np.std(X-Z)
+
+def find_step_equal_rms_dwt(X, n_levels, ssr_list):
+    target_err = np.std(X - quantise(X, 17))
+
+    # Binary search
+    low, high = 5, 30
+    while high - low > 0.1:
+        mid = (low + high) / 2
+        ss_list = [mid]
+        for i in range(n_levels):
+            ss_list.append(mid * ssr_list[i+1])
+        ss_arr = np.tile(np.array(ss_list), (3, 1))
+        err = compute_err_dwt(X, ss_arr, n_levels)
+
+        if err < target_err:
+            low = mid
+        else:
+            high = mid
+
+    return (low + high) / 2

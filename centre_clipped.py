@@ -16,7 +16,6 @@ COMMENTS
 
 Preferred front-end schemes are LBT (equal RMS) and DWT (equal MSE)
 Need to fix DWT function as currently does not work
-"""
 
 # Modifying rise1 for LBT - graph
 X = lighthouse - 128.0
@@ -45,21 +44,23 @@ plt.show()
 
 Zp = gen_dct_lbt_equal_rms(X, 8, np.sqrt(2), 1.5)[1]
 print(np.std(X-Zp))
+
 """
+
 # Modifying rise1 for LBT - image plots
 X = lighthouse - 128.0
 fig, ax = plt.subplots(1, 3, figsize=(18, 6))
-plot_image(gen_lbt_equal_rms(X, 4, np.sqrt(2), 0.5)[1], ax=ax[0])
+plot_image(gen_dct_lbt_equal_rms(X, 4, np.sqrt(2), 0.5)[1], ax=ax[0])
 ax[0].set_title('rise1 ratio = 0.5')
-plot_image(gen_lbt_equal_rms(X, 4, np.sqrt(2), 1.0)[1], ax=ax[1])
+plot_image(gen_dct_lbt_equal_rms(X, 4, np.sqrt(2), 1.0)[1], ax=ax[1])
 ax[1].set_title('rise1 ratio = 1.0')
-plot_image(gen_lbt_equal_rms(X, 4, np.sqrt(2), 1.5)[1], ax=ax[2])
+plot_image(gen_dct_lbt_equal_rms(X, 4, np.sqrt(2), 1.5)[1], ax=ax[2])
 ax[2].set_title('rise1 ratio = 1.5')
 plt.tight_layout()
 fig.suptitle('LBT for different rise1 ratios, using C4 and s = root(2)')
 plt.show()
 
-
+"""
 # Suppressing highest horizontal/vertical frequency sub-images - could look in zig-zag manner as seen in JPEG standard in notebook 12
 
 fig, ax = plt.subplots()
