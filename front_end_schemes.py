@@ -16,8 +16,9 @@ def gen_dct_lbt_equal_rms(X, block_size, s=None, rise1_ratio=0.5, supp_comp_num=
     step_size = find_step_equal_rms_dct_lbt(X, C, s, rise1_ratio, supp_comp_num)
     Yq = gen_Y_quant_dct_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
     Yr = regroup(Yq, block_size)
-    Yr_ent = dctbpp(Yr, 8)
-    comp_ratio =  X_quant_entropy(X) / Yr_ent
+    Yr_ent = dctbpp(Yr, 16)
+    X_quant = quantise(X, 17)
+    comp_ratio = entropy(X_quant) / Yr_ent
     
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
     if s == None:
@@ -33,19 +34,22 @@ def gen_dct_lbt_equal_rms(X, block_size, s=None, rise1_ratio=0.5, supp_comp_num=
 def gen_dwt_equal_mse(X, num_levels):
     energies = impulse_energies(num_levels)
 
-    step_size_ratios = [1]
+    ssr_list = [1]
     for i in range(num_levels):
-        step_size_ratios.append(np.sqrt(energies[0]/energies[i+1]))
+        ssr_list.append(np.sqrt(energies[0]/energies[i+1]))
 
-    step_sizes = [17]
+    initial_ss = find_step_equal_rms_dwt(X, num_levels, ssr_list)
+
+    ss_list = [initial_ss]
     for i in range(num_levels):
-        step_sizes.append(step_sizes[0] * step_size_ratios[i+1])
-    step_sizes_array = np.tile(np.array(step_sizes), (3, 1))
+        ss_list.append(ss_list[0] * ssr_list[i+1])
+    ss_arr = np.tile(np.array(ss_list), (3, 1))
 
     Y = nlevdwt(X, num_levels)
-    Yq, Yq_ent_arr = quantdwt(Y, step_sizes_array)
+    Yq, Yq_ent_arr = quantdwt(Y, ss_arr)
     Yq_ent = np.sum(Yq_ent_arr)
-    comp_ratio = X_quant_entropy(X) / Yq_ent
+    X_quant = quantise(X, 17)
+    comp_ratio = entropy(X_quant) / Yq_ent
     Z = nlevidwt(Yq, num_levels)
 
     return comp_ratio, Z
