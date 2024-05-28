@@ -16,6 +16,7 @@ COMMENTS:
 Preferred front-end schemes are DCT (equal RMS, 8x8) LBT (equal RMS, 4x4 and 8x8) and DWT (equal MSE)
 Need to fix DWT function as currently does not work
 
+
 # GRAPH: Modifying rise1 and investigating effects on RMS error and comp. ratio
 X = X_non_zero_mean - 128.0
 rise1_ratios = list(np.arange(0.5, 2.0, 0.25))
@@ -63,6 +64,7 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+
 # Modifying rise1 for LBT - image plots
 fig, ax = plt.subplots(1, 3, figsize=(18, 6))
 plot_image(gen_dct_lbt_equal_rms(X, 4, np.sqrt(2), 0.5)[1], ax=ax[0])
@@ -74,8 +76,8 @@ ax[2].set_title('rise1 ratio = 1.5')
 plt.tight_layout()
 fig.suptitle('LBT for different rise1 ratios, using C4 and s = root(2)')
 plt.show()
-
 """
+
 # Suppressing highest horizontal/vertical frequency sub-images - could look in zig-zag manner as seen in JPEG standard in notebook 12
 
 fig, ax = plt.subplots()
@@ -94,8 +96,3 @@ plt.xlabel('Number of components suppressed per image')
 plt.ylabel('Compression Ratios')
 plt.title('Graph 2')
 plt.show()
-
-fig, ax = plt.subplots()
-plot_image(gen_lbt_equal_rms(X, 8, np.sqrt(2), 0.5, 58)[1])
-plt.show()
-"""
