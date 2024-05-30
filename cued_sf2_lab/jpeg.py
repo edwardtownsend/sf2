@@ -95,6 +95,7 @@ def runampl(a: np.ndarray) -> np.ndarray:
     cb = np.abs(c)
     maxc = np.max(cb)
 
+    # Form the second column of our output, ra, by converting each decimal non-zero value to its binary form and counting number of bits in this binary form
     ka = [1]
     while k <= maxc:
         ca += (cb >= k)
@@ -102,23 +103,27 @@ def runampl(a: np.ndarray) -> np.ndarray:
         ka.append(k)
     ka = np.array(ka)
 
+    # Adjust third column for negative values, using offset binary (form of sign-magnitude representation)
     cneg = np.where(c < 0)[0]
-    # Changes expression for python indexing
     c[cneg] = c[cneg] + ka[ca[cneg]] - 1
     # appended -1 instead of 0.
     col1 = np.diff(np.concatenate((np.array([-1]), b))) - 1
+    # Combine columns in (N+1)x3 array
     ra = np.stack((col1, ca, c), axis=1)
+    # Append final row of zeros as an EoB marker
     ra = np.concatenate((ra, np.array([[0, 0, 0]])))
     return ra
 
 
 class HuffmanTable(NamedTuple):
-    """A huffman table stored in sorted order
+    """
+    A huffman table stored in sorted order
     
     Attributes:
         bits: The number of values per bit level, shape ``(16,)``.
         huffval: The codes sorted by bit length, shape ``(162,)``.
     """
+    # Specify the types of these attributes - this does not enforce these types though
     bits: np.ndarray
     huffval: np.ndarray
 
@@ -233,11 +238,9 @@ def huffdflt(typ: int) -> HuffmanTable:
              226,  227,  228,  229,  230,  231,  232,  233,  234,
              242,  243,  244,  245,  246,  247,  248,  249,  250]]
 
-    # Flatten the nested list alongside the length of each sublist, to make it
-    # clear how many bytes of data it takes to store these tables.
+    # Create two 1D arrays - huffval simply flattens vals into a 1D array, use bits to keep track of where each sub-list starts!
     bits = np.array([len(v) for v in vals], dtype=np.uint8)
     huffval = np.concatenate([np.array(v, dtype=np.uint8) for v in vals])
-
     return HuffmanTable(bits, huffval)
 
 
