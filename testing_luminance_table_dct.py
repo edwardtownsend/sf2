@@ -15,7 +15,8 @@ X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
 X = X_pre_zero_mean - 128.0
 
 # JPEG quantisation luminance table (section K.1)
-step_table = [
+"""
+step_table = np.array([
     [16, 11, 10, 16, 124, 140, 151, 161],
     [12, 12, 14, 19, 126, 158, 160, 155],
     [14, 13, 16, 24, 140, 157, 169, 156],
@@ -24,19 +25,24 @@ step_table = [
     [24, 35, 55, 64, 181, 104, 113, 192],
     [49, 64, 78, 87, 103, 121, 120, 101],
     [72, 92, 95, 98, 112, 100, 103, 199]
-]
+], dtype=np.float64)
+"""
+ones_array = np.ones((8, 8), dtype=np.float64)
+step_table = ones_array*23
 
-step_table = np.array(step_table)
 C8 = dct_ii(8)
-qY = gen_Y_quant_dct_jpeg(X, step_table, C8, s=None, rise1_ratio=0.5, supp_comp_num=0)
+qY = gen_Y_quant_dct_jpeg(X, step_table, C8, rise1_ratio=0.5, supp_comp_num=0)
+Z = colxfm(colxfm(qY.T, C8.T).T, C8.T)
 X_quant_ent = entropy(quantise(X, 17))
 qY_ent = entropy(qY)
 comp_ratio = X_quant_ent / qY_ent
 print(comp_ratio)
 
-Z = gen_Z_quant_dct_jpeg(X, step_table, C8, s=None, rise1_ratio=0.5, supp_comp_num=0)
-print(f"rms error is {np.std(X-Z)}")
-
 fig, ax = plt.subplots()
 plot_image(Z, ax=ax)
 plt.show()
+
+step_ratio = find_step_ratio_equal_rms_dct_jpeg(X, step_table, C8)
+print(step_ratio)
+print(np.std(quantise(X, 17) - X))
+print(compute_err_dct_jpeg(X, step_ratio, step_table, C8))

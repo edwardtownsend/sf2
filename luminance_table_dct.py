@@ -27,7 +27,7 @@ def quant1_jpeg(X, step_table, N=8, rise1=None):
                 rise /= 2
             else:
                 rise = rise1
-            q[i, j] = np.ceil((np.abs(X[i, j]) - rise)/step_table[i % N, j % N])
+            q[i, j] = np.ceil((np.abs(X[i, j]))/step_table[i % N, j % N])
     
     return q
 
@@ -55,69 +55,45 @@ def quantise_jpeg(x, step_table, N=8, rise1=None):
     y = quant2_jpeg(quant1_jpeg(x, step_table, N, rise1), step_table, N, rise1)
     return y
 
-def gen_Y_quant_dct_jpeg(X, step_table, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def gen_Y_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    if s == None:
-        Xp = X
-    else:
-        N = C.shape[0]
-        Pf, Pr = pot_ii(N, s)
-        t = np.s_[N//2:-N//2]
-        Xp = X.copy()
-        Xp[t, :] = colxfm(Xp[t, :], Pf)
-        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
-
+    Xp = X
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise_jpeg(Y, step_table)
 
     return Yq
 
-def gen_Z_quant_dct_jpeg(X, step_table, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def gen_Z_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    
-    if s == None:
-        Xp = X
-    else:
-        N = C.shape[0]
-        Pf, Pr = pot_ii(N, s)
-        t = np.s_[N//2:-N//2] 
-        Xp = X.copy()
-        Xp[t, :] = colxfm(Xp[t, :], Pf)
-        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
-
+    Xp = X
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise_jpeg(Y, step_table)
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
-    
-    if s == None:
-        return Z
-    else:
-        Zp = Z.copy()
-        Zp[:, t] = colxfm(Zp[:, t].T, Pr.T).T
-        Zp[t, :] = colxfm(Zp[t, :], Pr.T)
-        return Zp
+ 
+    return Z
 
-def compute_err_dct_2(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def compute_err_dct_jpeg(X, step_ratio, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    Zp = gen_Z_quant_dct_2(X, step_size, C, s, rise1_ratio, supp_comp_num)
+    step_table *= step_ratio
+    Zp = gen_Z_quant_dct_jpeg(X, step_table, C)
     return np.std(X-Zp)
 
 
-def find_step_ratio_equal_rms_dct(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def find_step_ratio_equal_rms_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
@@ -126,10 +102,10 @@ def find_step_ratio_equal_rms_dct(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0
     target_err = np.std(X - quantise(X, 17))
 
     # Binary search
-    low, high = 15, 30
-    while high - low > 0.1:
+    low, high = 0, 1
+    while high - low > 0.005:
         mid = (low + high) / 2
-        err = compute_err_dct_2(X, mid, C, s, rise1_ratio, supp_comp_num)
+        err = compute_err_dct_jpeg(X, mid, step_table, C, rise1_ratio, supp_comp_num)
 
         if err < target_err:
             low = mid
