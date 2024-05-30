@@ -113,6 +113,39 @@ def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
 
     return (low + high) / 2
 
+def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
+    target_err = np.std(X - quantise(X, 17))
+
+    # Binary search
+    low, high = 15, 30
+    while high - low > 0.1:
+        mid = (low + high) / 2
+        err = compute_err_dct_lbt(X, mid, C, s, rise1_ratio, supp_comp_num)
+
+        if err < target_err:
+            low = mid
+        else:
+            high = mid
+
+    return (low + high) / 2    
+
+data = [
+    [16, 11, 10, 16, 124, 140, 151, 161],
+    [12, 12, 14, 19, 126, 158, 160, 155],
+    [14, 13, 16, 24, 140, 157, 169, 156],
+    [14, 17, 22, 29, 151, 187, 180, 162],
+    [18, 22, 37, 56, 168, 109, 103, 177],
+    [24, 35, 55, 64, 181, 104, 113, 192],
+    [49, 64, 78, 87, 103, 121, 120, 101],
+    [72, 92, 95, 98, 112, 100, 103, 199]
+]
+
+
 def suppress_components(Y, block_size, num_components):
     """
     Sets elements in Yq to zero in a zig-zag pattern based upon the JPEG documentation.

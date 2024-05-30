@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import IPython.display
 import numpy as np
 from cued_sf2_lab.familiarisation import load_mat_img, plot_image
-from cued_sf2_lab.laplacian_pyramid import quantise
+from cued_sf2_lab.laplacian_pyramid import *
 from cued_sf2_lab.dct import dct_ii
 from front_end_schemes import *
 
@@ -44,3 +44,10 @@ def run_tests():
         print(result)
 
 run_tests()
+
+X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
+X = X_pre_zero_mean - 128.0
+quant_X = quant1(X, 20)
+print(X[0:16, 0:16])
+print(quant_X[0:16, 0:16])
+print(X[:, :200].shape)
