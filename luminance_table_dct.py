@@ -19,12 +19,12 @@ def quant1_jpeg(X, step_table, N=8):
 
     m = X.shape[0]
     q = np.zeros(X.shape)
-    step = step_table[0, 0]
-    rise = step / 2
 
     for i in range(m):
         for j in range(m):
-            temp = np.ceil((np.abs(X[i, j]) - rise)/step_table[i % N, j % N])
+            step = step_table[i % N, j % N]
+            rise = step / 2
+            temp = np.ceil((np.abs(X[i, j]) - rise)/step)
             q[i, j] = temp*(temp > 0)*np.sign(X[i, j])
 
     return q
@@ -33,13 +33,12 @@ def quant1_jpeg(X, step_table, N=8):
 def quant2_jpeg(q, step_table, N=8):
     m = q.shape[0]
     Xq = np.zeros(q.shape)
-    
-    step = step_table[0, 0]
-    rise = step / 2
 
     for i in range(m):
         for j in range(m):
-            Xq[i, j] = q[i, j] * step_table[i % N, j % N] + np.sign(q[i, j]) * (rise - step/2.0)
+            step = step_table[i % N, j % N]
+            rise = step / 2
+            Xq[i, j] = q[i, j] * step + np.sign(q[i, j]) * (rise - step/2.0)
     
     return Xq
 
@@ -96,7 +95,7 @@ def find_step_ratio_equal_rms_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_c
 
     # Binary search
     low, high = 0, 1
-    while high - low > 0.005:
+    while high - low > 0.1:
         mid = (low + high) / 2
         err = compute_err_dct_jpeg(X, mid, step_table, C, rise1_ratio, supp_comp_num)
 
