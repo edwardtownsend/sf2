@@ -11,7 +11,7 @@ from useful_functions import *
 
 # New functions to apply the JPEG DCT luminance quantisation table
 
-def quant1_jpeg(X, step_table, N=8, rise1=None):
+def quant1_jpeg(X, step_table, N=8):
     if X.shape[0] != X.shape[1]:
         raise ValueError('Input array is not square!')
     if X.shape[0] % N != 0:
@@ -19,40 +19,33 @@ def quant1_jpeg(X, step_table, N=8, rise1=None):
 
     m = X.shape[0]
     q = np.zeros(X.shape)
+    step = step_table[0, 0]
+    rise = step / 2
 
     for i in range(m):
         for j in range(m):
-            if rise1 is None:
-                rise = step_table[i % N, j % N]
-                rise /= 2
-            else:
-                rise = rise1
-            q[i, j] = np.ceil((np.abs(X[i, j]))/step_table[i % N, j % N])
-    
+            temp = np.ceil((np.abs(X[i, j]) - rise)/step_table[i % N, j % N])
+            q[i, j] = temp*(temp > 0)*np.sign(X[i, j])
+
     return q
 
 
-def quant2_jpeg(q, step_table, N=8, rise1=None):
+def quant2_jpeg(q, step_table, N=8):
     m = q.shape[0]
     Xq = np.zeros(q.shape)
+    
+    step = step_table[0, 0]
+    rise = step / 2
 
-    if rise1 is None:
-        for i in range(m):
-            for j in range(m):
-                Xq[i, j] = q[i, j] * step_table[i % N, j % N]
-
-    else:
-        # Reconstruct quantised values and incorporate sign(q).
-        for i in range(m):
-            for j in range(m):
-                Xq = q[i, j] * step_table[i % N, j % N] + np.sign(q[i, j]) * (rise1 - step_table[i % N, j % N]/2.0)
+    for i in range(m):
+        for j in range(m):
+            Xq[i, j] = q[i, j] * step_table[i % N, j % N] + np.sign(q[i, j]) * (rise - step/2.0)
     
     return Xq
 
-def quantise_jpeg(x, step_table, N=8, rise1=None):
+def quantise_jpeg(x, step_table, N=8):
     # Perform both quantisation steps
-    step_table = np.array(step_table)
-    y = quant2_jpeg(quant1_jpeg(x, step_table, N, rise1), step_table, N, rise1)
+    y = quant2_jpeg(quant1_jpeg(x, step_table, N), step_table, N)
     return y
 
 def gen_Y_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):

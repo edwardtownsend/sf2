@@ -31,7 +31,7 @@ ones_array = np.ones((8, 8), dtype=np.float64)
 step_table = ones_array*23
 
 C8 = dct_ii(8)
-qY = gen_Y_quant_dct_jpeg(X, step_table, C8, rise1_ratio=0.5, supp_comp_num=0)
+qY = gen_Y_quant_dct_jpeg(X, step_table, C8, supp_comp_num=0)
 Z = colxfm(colxfm(qY.T, C8.T).T, C8.T)
 X_quant_ent = entropy(quantise(X, 17))
 qY_ent = entropy(qY)
