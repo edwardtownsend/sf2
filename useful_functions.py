@@ -31,7 +31,7 @@ def dctbpp(Yr, N):
 
     return entropy_sum
 
-def gen_Y_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def forward_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
@@ -49,35 +49,19 @@ def gen_Y_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
 
     Y = colxfm(colxfm(Xp, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size, rise1_ratio*step_size)
 
-    return Yq
+    return Y
 
-def gen_Z_quant_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
-    """
-    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
-    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
-    When s = None we perform the DCT instead of the LBT.
-    """
-    
-    if s == None:
-        Xp = X
-    else:
-        N = C.shape[0]
-        Pf, Pr = pot_ii(N, s)
-        t = np.s_[N//2:-N//2] 
-        Xp = X.copy()
-        Xp[t, :] = colxfm(Xp[t, :], Pf)
-        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
+def inverse_dct(Y, C, rise1_ratio=0.5, supp_comp_num=0):
+    return colxfm(colxfm(Y.T, C.T).T, C.T)
 
-    Y = colxfm(colxfm(Xp, C).T, C).T
-    Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise(Y, step_size, rise1_ratio*step_size)
-    Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
-    
+def perform_Pr(Z, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
     if s == None:
         return Z
     else:
+        N = C.shape[0]
+        Pf, Pr = pot_ii(N, s)
+        t = np.s_[N//2:-N//2]
         Zp = Z.copy()
         Zp[:, t] = colxfm(Zp[:, t].T, Pr.T).T
         Zp[t, :] = colxfm(Zp[t, :], Pr.T)
@@ -89,7 +73,10 @@ def compute_err_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    Zp = gen_Z_quant_dct_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
+    Y = forward_dct_lbt(X, C, s, rise1_ratio, supp_comp_num)
+    Yq = quantise(Y, step_size, rise1_ratio * step_size)
+    Z = inverse_dct(Yq, C, rise1_ratio, supp_comp_num)
+    Zp = perform_Pr(Z, C, s, rise1_ratio, supp_comp_num)
     return np.std(X-Zp)
 
 def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):

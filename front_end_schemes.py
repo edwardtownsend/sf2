@@ -14,7 +14,8 @@ def gen_dct_lbt_equal_rms(X, block_size, s=None, rise1_ratio=0.5, supp_comp_num=
 
     C = dct_ii(block_size)
     step_size = find_step_equal_rms_dct_lbt(X, C, s, rise1_ratio, supp_comp_num)
-    Yq = gen_Y_quant_dct_lbt(X, step_size, C, s, rise1_ratio, supp_comp_num)
+    Y = forward_dct_lbt(X, C, s, rise1_ratio, supp_comp_num)
+    Yq = quantise(Y, step_size, rise1_ratio*step_size)
     Yr = regroup(Yq, block_size)
     Yr_ent = dctbpp(Yr, 16)
     X_quant = quantise(X, 17)

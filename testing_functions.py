@@ -45,9 +45,11 @@ def run_tests():
 
 run_tests()
 
+"""
 X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
 X = X_pre_zero_mean - 128.0
 quant_X = quant1(X, 20)
 print(X[0:16, 0:16])
 print(quant_X[0:16, 0:16])
 print(X[:, :200].shape)
+"""
