@@ -53,3 +53,16 @@ def gen_dwt_equal_mse(X, num_levels):
     Z = nlevidwt(Yq, num_levels)
 
     return comp_ratio, Z
+
+
+def eightDCTjpeg(X):
+    step_size = 16
+    calc_bits = 100000
+    while calc_bits > 40960:
+        vlctemp, _ = jpegenc(X, step_size)
+        calc_bits = vlctemp[:,1].sum()
+        step_size += 1
+    vlc, _ = jpegenc(X, step_size)
+    Z = jpegdec(vlc, step_size)
+    rmserr = np.std(Z - X)
+    return Z, rmserr, calc_bits
