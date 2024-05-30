@@ -52,10 +52,9 @@ def forward_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
 
     return Y
 
-def inverse_dct(Y, C, rise1_ratio=0.5, supp_comp_num=0):
-    return colxfm(colxfm(Y.T, C.T).T, C.T)
-
-def perform_Pr(Z, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+def inverse_dct_lbt(Y, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    Z = colxfm(colxfm(Y.T, C.T).T, C.T)
+    
     if s == None:
         return Z
     else:
@@ -75,8 +74,8 @@ def compute_err_dct_lbt(X, step_size, C, s=None, rise1_ratio=0.5, supp_comp_num=
     """
     Y = forward_dct_lbt(X, C, s, rise1_ratio, supp_comp_num)
     Yq = quantise(Y, step_size, rise1_ratio * step_size)
-    Z = inverse_dct(Yq, C, rise1_ratio, supp_comp_num)
-    Zp = perform_Pr(Z, C, s, rise1_ratio, supp_comp_num)
+    Zp = inverse_dct_lbt(Yq, C, s, rise1_ratio, supp_comp_num)
+    
     return np.std(X-Zp)
 
 def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):

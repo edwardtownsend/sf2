@@ -9,12 +9,13 @@ from .familiarisation import plot_image
 from visstructure import visualerror
 from useful_functions import *
 
-def jpegenc_lbt(X, qstep, s=None, N=8, M=8, opthuff=False, dcbits=8):
+def jpegenc_dct_lbt(X, C, qstep, s=None, N=8, M=8, opthuff=False, dcbits=8):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
-    
-    C8 = dct_ii(8)
-    Y = gen_Y_dct_lbt(X, C8, s)
+
+    ### NEW LINE
+    Y = gen_Y_dct_lbt(X, C, s)
+    ###
     Yq = quant1(Y, qstep, qstep).astype('int')
 
     scan = diagscan(M)
@@ -57,10 +58,10 @@ def jpegenc_lbt(X, qstep, s=None, N=8, M=8, opthuff=False, dcbits=8):
             ra1 = runampl(yqflat[scan])
             vlc.append(huffenc(huffhist, ra1, ehuf))
     vlc = np.concatenate([np.zeros((0, 2), dtype=np.intp)] + vlc)
-
+    
     return vlc, dhufftab
 
-def jpegdec_lbt(vlc, qstep, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
+def jpegdec_dct_lbt(vlc, C, qstep, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
@@ -114,33 +115,30 @@ def jpegdec_lbt(vlc, qstep, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=2
             Zq[r:r+M, c:c+M] = yq
 
     Zi = quant2(Zq, qstep, qstep)
-    Zp = perform_Pr(Zi, C, s)
+    Zp = inverse_dct_lbt(Zi, C, s)
+    
     return Zp
 
-def eightLBTjpegtune(X):
-    X = X-128.0
-    SSIMscore = 0
-    for k in range(120, 150, 2):
-        step_size = 16
-        calc_bits = 100000
-        k = k/100
-        while calc_bits > 40960:
-            vlctemp, _ = jpegencLBT(X, step_size, s=k)
-            calc_bits = vlctemp[:,1].sum()
-            step_size += 1
-        vlc, _ = jpegencLBT(X, step_size, k)
-        Z = jpegdecLBT(vlc, step_size, k)
-        rmserr = np.std(Z - X)
-        scoretemp = visualerror(X, Z)
-        print(scoretemp)
-        if scoretemp > SSIMscore:
-            SSIMscore = scoretemp
-            Zfinal = Z
+def compute_scores_dct_lbt(X, C, s=None, step_table, supp_comp_num=0):
+    step_size = 16
+    calc_bits = 100000
+    while calc_bits > 40960:
+        vlctemp, _ = jpegencLBT(X, step_size, s)
+        calc_bits = vlctemp[:,1].sum()
+        step_size += 1
+    vlc, _ = jpegencLBT(X, step_size, k)
+    Z = jpegdecLBT(vlc, step_size, k)
+    rmserr = np.std(Z - X)
+    scoretemp = visualerror(X, Z)
+    if scoretemp > SSIMscore:
+        SSIMscore = scoretemp
+        Zfinal = Z
+    
     return Zfinal, rmserr, calc_bits, SSIMscore
 
 
-def eightDCTjpeg(X):
-    X = X- 128.0
+def eight_dct(X):
+    X = X - 128.0
     step_size = 16
     calc_bits = 100000
     while calc_bits > 40960:
@@ -151,7 +149,9 @@ def eightDCTjpeg(X):
     Z = jpegdec(vlc, step_size)
     rmserr = np.std(Z - X)
     Verr = visualerror(X, Z)
+    
     return Z, rmserr, calc_bits, Verr
+
 def compress(X):
     ZLBT, eLBT, bLBT, scoreLBT = eightLBTjpegtune(X)
     ZDCT, eDCT, bDCT, scoreDCT = eightDCTjpeg(X)
@@ -164,5 +164,4 @@ def compress(X):
         fig, ax = plt.subplots()
         plot_image(ZLBT, ax=ax)
 
-
-def optimise()
+def optimise(X):

@@ -53,8 +53,7 @@ def gen_Y_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    Xp = X
-    Y = colxfm(colxfm(Xp, C).T, C).T
+    Y = colxfm(colxfm(X, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise_jpeg(Y, step_table)
 
@@ -66,8 +65,7 @@ def gen_Z_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    Xp = X
-    Y = colxfm(colxfm(Xp, C).T, C).T
+    Y = colxfm(colxfm(X, C).T, C).T
     Y = suppress_components(Y, C.shape[0], supp_comp_num)
     Yq = quantise_jpeg(Y, step_table)
     Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
