@@ -141,6 +141,7 @@ def _ssim(X, Y, win_size=None, gradient=False, data_range=None, gaussian_weights
 def visualerror(X, Z):
     Value, map = ssimTEST2(X, Z, data_range=255)
 
+"""
 def choosescheme(X):
     DWTchoice = False
     # Z1 = LBT function(X)
@@ -157,3 +158,4 @@ def choosescheme(X):
     # Execute full LBT code
     if DWTchoice  == False
     # Execute full DWT code
+"""

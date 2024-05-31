@@ -1,22 +1,27 @@
-from typing import Tuple, NamedTuple, Optional
+import warnings
+import inspect
 import numpy as np
 import matplotlib.pyplot as plt
-from .laplacian_pyramid import quant1, quant2
-from .dct import dct_ii, colxfm, regroup
-from .bitword import bitword
-from .lbt import pot_ii
-from .familiarisation import plot_image
+from cued_sf2_lab.familiarisation import load_mat_img, plot_image
+from cued_sf2_lab.laplacian_pyramid import *
+from cued_sf2_lab.dct import *
+from cued_sf2_lab.bitword import bitword
+from cued_sf2_lab.jpeg import *
 from visstructure import visualerror
+from front_end_schemes import *
 from useful_functions import *
+from luminance_table_dct import *
 
-def jpegenc_dct_lbt(X, C, qstep, s=None, N=8, M=8, opthuff=False, dcbits=8):
+def jpegenc_dct_lbt(X, ssr, step_table_type, C, s=None, N=8, M=8, opthuff=False, dcbits=8):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
-    ### NEW LINE
-    Y = gen_Y_dct_lbt(X, C, s)
+    ### NEW CODE
+    Y = forward_dct_lbt(X, C, s)
+    step_table = gen_step_table(step_table_type)
+    step_table *= ssr
+    Yq = quant1_jpeg(Y, step_table).astype('int')
     ###
-    Yq = quant1(Y, qstep, qstep).astype('int')
 
     scan = diagscan(M)
     dhufftab = huffdflt(1)
@@ -61,7 +66,7 @@ def jpegenc_dct_lbt(X, C, qstep, s=None, N=8, M=8, opthuff=False, dcbits=8):
     
     return vlc, dhufftab
 
-def jpegdec_dct_lbt(vlc, C, qstep, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
+def jpegdec_dct_lbt(vlc, ssr, step_table_type, C, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
@@ -114,54 +119,69 @@ def jpegdec_dct_lbt(vlc, C, qstep, s=None, N=8, M=8, hufftab=None, dcbits=8, W=2
                 yq = regroup(yq, M//N)
             Zq[r:r+M, c:c+M] = yq
 
-    Zi = quant2(Zq, qstep, qstep)
+    ### NEW CODE
+    step_table = gen_step_table(step_table_type)
+    step_table *= ssr
+    Zi = quant2_jpeg(Zq, step_table)
     Zp = inverse_dct_lbt(Zi, C, s)
+    ###
     
     return Zp
 
-def compute_scores_dct_lbt(X, C, s=None, step_table, supp_comp_num=0):
-    step_size = 16
-    calc_bits = 100000
-    while calc_bits > 40960:
-        vlctemp, _ = jpegencLBT(X, step_size, s)
-        calc_bits = vlctemp[:,1].sum()
-        step_size += 1
-    vlc, _ = jpegencLBT(X, step_size, k)
-    Z = jpegdecLBT(vlc, step_size, k)
-    rmserr = np.std(Z - X)
-    scoretemp = visualerror(X, Z)
-    if scoretemp > SSIMscore:
-        SSIMscore = scoretemp
-        Zfinal = Z
-    
-    return Zfinal, rmserr, calc_bits, SSIMscore
+def find_min_ssr_jpeg(X, step_table_type, C, s=None):
+    # Binary search
+    low, high = 0, 200
+    while high - low > 0.1:
+        mid = (low + high) / 2
 
+        vlctemp, _ = jpegenc_dct_lbt(X, mid, step_table_type, C, s)
+        num_bits = vlctemp[:,1].sum()
 
-def eight_dct(X):
-    X = X - 128.0
-    step_size = 16
-    calc_bits = 100000
-    while calc_bits > 40960:
-        vlctemp, _ = jpegenc(X, step_size)
-        calc_bits = vlctemp[:,1].sum()
-        step_size += 1
-    vlc, _ = jpegenc(X, step_size)
-    Z = jpegdec(vlc, step_size)
-    rmserr = np.std(Z - X)
-    Verr = visualerror(X, Z)
+        if num_bits < 40000:
+            high = mid
+        else:
+            low = mid
+
+    return (low + high) / 2    
+
+def compute_scores_dct_lbt(X, ssr, step_table_type, C, s=None):
+    vlc, _ = jpegenc_dct_lbt(X, ssr, step_table_type, C, s)
+    num_bits = vlc[:,1].sum()
+    Z = jpegdec_dct_lbt(vlc, ssr, step_table_type, C, s)
     
-    return Z, rmserr, calc_bits, Verr
+    rms_err = np.std(Z - X)
+    ssim = visualerror(X, Z)
+    if ssim == None:
+        ssim = 0
+    
+    return rms_err, ssim, num_bits
 
 def compress(X):
-    ZLBT, eLBT, bLBT, scoreLBT = eightLBTjpegtune(X)
-    ZDCT, eDCT, bDCT, scoreDCT = eightDCTjpeg(X)
-    if scoreDCT > scoreLBT:
-        print(f"decoded with an rms error {eDCT} using {bDCT} bits and an SSIM score of {scoreDCT} (using DCT)")
-        fig, ax = plt.subplots()
-        plot_image(ZDCT, ax=ax)
-    else:
-        print(f"decoded with an rms error {eLBT} using {bLBT} bits and an SSIM score of {scoreLBT} (using LBT)")
-        fig, ax = plt.subplots()
-        plot_image(ZLBT, ax=ax)
+    C8 = dct_ii(8)
+    # Compute min ssr to achieve 5kB size
+    ssr_dct = find_min_ssr_jpeg(X, 1, C8, None)
+    ssr_lbt = find_min_ssr_jpeg(X, 1, C8, np.sqrt(2))
 
-def optimise(X):
+    # Compute scores at these step sizes
+    rms_dct, ssim_dct, bits_dct = compute_scores_dct_lbt(X, ssr_dct, 1, C8, None)
+    rms_lbt, ssim_lbt, bits_lbt = compute_scores_dct_lbt(X, ssr_dct, 1, C8, np.sqrt(2))
+
+    # Compute final decoded images at these step sizes
+    vlc_dct, _ = jpegenc_dct_lbt(X, ssr_dct, 1, C8, None)
+    Z_dct = jpegdec_dct_lbt(vlc_dct, ssr_dct, 1, C8, None)
+    vlc_lbt, _ = jpegenc_dct_lbt(X, ssr_lbt, 1, C8, np.sqrt(2))
+    Z_lbt = jpegdec_dct_lbt(vlc_lbt, ssr_lbt, 1, C8, np.sqrt(2))
+
+    if ssim_dct > ssim_lbt:
+        print(f"decoded with an rms error {rms_dct} using {bits_dct} bits and an SSIM score of {ssim_dct} (using DCT)")
+        fig, ax = plt.subplots()
+        plot_image(Z_dct, ax=ax)
+
+    else:
+        print(f"decoded with an rms error {rms_lbt} using {bits_lbt} bits and an SSIM score of {ssim_lbt} (using LBT)")
+        fig, ax = plt.subplots()
+        plot_image(Z_lbt, ax=ax)
+
+X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
+X = X_pre_zero_mean - 128.0
+compress(X)
