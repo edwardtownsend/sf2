@@ -16,9 +16,10 @@ from skimage.metrics import structural_similarity as ssim
 def find_min_ssr_jpeg(X, step_table, C, s=None):
     # Binary search
     mean_step = np.mean(step_table)
-    ssr_low, ssr_high = 0, 150 / mean_step
+    ssr_low, ssr_high = 0, 200 / mean_step
 
-    while ssr_high - ssr_low > 0.1:
+    while ssr_high - ssr_low > 0.0001:
+        print(ssr_low, ssr_high)
         ssr_mid = (ssr_low + ssr_high) / 2
 
         vlctemp, _ = jpegenc_dct_lbt(X, ssr_mid, step_table, C, s)
@@ -67,7 +68,7 @@ def compress_1(X, step_table_type):
     vlc_lbt, _ = jpegenc_dct_lbt(X, ssr_lbt, step_table, C8, np.sqrt(2))
     Z_lbt = jpegdec_dct_lbt(vlc_lbt, ssr_lbt, step_table, C8, np.sqrt(2))
 
-    if ssim_dct > ssim_lbt:
+    if ssim_dct < ssim_lbt:
         print(f"decoded with an rms error {rms_dct} using {bits_dct} bits and an SSIM score of {ssim_dct} (using DCT)")
         fig, ax = plt.subplots()
         plot_image(Z_dct, ax=ax)
@@ -105,6 +106,7 @@ def compress_2(X, step_table_type):
     norm_energy_arr[:4, :4] = 1.0
 
     step_table /= norm_energy_arr
+    print(step_table)
 
     # Compute min ssr to achieve 5kB size
     ssr_dct = find_min_ssr_jpeg(X, step_table, C, None)
