@@ -15,19 +15,29 @@ from skimage.metrics import structural_similarity as ssim
 
 def find_min_ssr_jpeg(X, step_table_type, C, s=None):
     # Binary search
-    low, high = 0, 200
-    while high - low > 0.1:
-        mid = (low + high) / 2
+    step_table = gen_step_table(step_table_type)
+    h, w = step_table.shape 
+    average_step = np.sum(step_table) / (h * w)
+    ssr_low, ssr_high = 0, 150 / average_step
 
-        vlctemp, _ = jpegenc_dct_lbt(X, mid, step_table_type, C, s)
+    while ssr_high - ssr_low > 0.1:
+        ssr_mid = (ssr_low + ssr_high) / 2
+
+        vlctemp, _ = jpegenc_dct_lbt(X, ssr_mid, step_table_type, C, s)
         num_bits = vlctemp[:,1].sum()
 
-        if num_bits < 40000:
-            high = mid
+        if num_bits < 40960:
+            next_ssr_high = ssr_mid
+            next_high_vlctemp, _ = jpegenc_dct_lbt(X, next_ssr_high, step_table_type, C, s)
+            next_high_num_bits = next_high_vlctemp[:,1].sum() 
+            if next_high_num_bits > 40960:
+                return ssr_mid
+            else:
+                ssr_high = ssr_mid
         else:
-            low = mid
-
-    return (low + high) / 2    
+            ssr_low = ssr_mid
+    
+    return ssr_high  
 
 def compute_scores_dct_lbt(X, ssr, step_table_type, C, s=None):
     vlc, _ = jpegenc_dct_lbt(X, ssr, step_table_type, C, s)
@@ -41,32 +51,34 @@ def compute_scores_dct_lbt(X, ssr, step_table_type, C, s=None):
     
     return rms_err, ssim_score, num_bits
 
-def compress(X):
+def compress(X, step_table_type):
     C8 = dct_ii(8)
     # Compute min ssr to achieve 5kB size
-    ssr_dct = find_min_ssr_jpeg(X, 1, C8, None)
-    ssr_lbt = find_min_ssr_jpeg(X, 1, C8, np.sqrt(2))
+    ssr_dct = find_min_ssr_jpeg(X, step_table_type, C8, None)
+    ssr_lbt = find_min_ssr_jpeg(X, step_table_type, C8, np.sqrt(2))
 
     # Compute scores at these step sizes
-    rms_dct, ssim_dct, bits_dct = compute_scores_dct_lbt(X, ssr_dct, 1, C8, None)
-    rms_lbt, ssim_lbt, bits_lbt = compute_scores_dct_lbt(X, ssr_dct, 1, C8, np.sqrt(2))
+    rms_dct, ssim_dct, bits_dct = compute_scores_dct_lbt(X, ssr_dct, step_table_type, C8, None)
+    rms_lbt, ssim_lbt, bits_lbt = compute_scores_dct_lbt(X, ssr_lbt, step_table_type, C8, np.sqrt(2))
 
     # Compute final decoded images at these step sizes
-    vlc_dct, _ = jpegenc_dct_lbt(X, ssr_dct, 1, C8, None)
-    Z_dct = jpegdec_dct_lbt(vlc_dct, ssr_dct, 1, C8, None)
-    vlc_lbt, _ = jpegenc_dct_lbt(X, ssr_lbt, 1, C8, np.sqrt(2))
-    Z_lbt = jpegdec_dct_lbt(vlc_lbt, ssr_lbt, 1, C8, np.sqrt(2))
+    vlc_dct, _ = jpegenc_dct_lbt(X, ssr_dct, step_table_type, C8, None)
+    Z_dct = jpegdec_dct_lbt(vlc_dct, ssr_dct, step_table_type, C8, None)
+    vlc_lbt, _ = jpegenc_dct_lbt(X, ssr_lbt, step_table_type, C8, np.sqrt(2))
+    Z_lbt = jpegdec_dct_lbt(vlc_lbt, ssr_lbt, step_table_type, C8, np.sqrt(2))
 
     if ssim_dct > ssim_lbt:
         print(f"decoded with an rms error {rms_dct} using {bits_dct} bits and an SSIM score of {ssim_dct} (using DCT)")
         fig, ax = plt.subplots()
         plot_image(Z_dct, ax=ax)
+        plt.show()
 
     else:
         print(f"decoded with an rms error {rms_lbt} using {bits_lbt} bits and an SSIM score of {ssim_lbt} (using LBT)")
         fig, ax = plt.subplots()
         plot_image(Z_lbt, ax=ax)
+        plt.show()
 
 X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
 X = X_pre_zero_mean - 128.0
-compress(X)
+compress(X, 0)
