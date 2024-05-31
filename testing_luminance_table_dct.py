@@ -16,7 +16,6 @@ X = X_pre_zero_mean - 128.0
 
 # JPEG quantisation luminance table (section K.1)
 
-"""
 step_table = np.array([
     [16, 11, 10, 16, 24, 40, 51, 61],
     [12, 12, 14, 19, 26, 58, 60, 55],
@@ -27,20 +26,14 @@ step_table = np.array([
     [49, 64, 78, 87, 103, 121, 120, 101],
     [72, 92, 95, 98, 112, 100, 103, 99]
 ], dtype=np.float64)
-"""
-ones_array = np.ones((8, 8), dtype=np.float64)
-step_table = ones_array*23
 
-C = dct_ii(8)
-step_ratio = find_step_ratio_equal_rms_dct_jpeg(X, step_table, C)
-print(f"Step ratio is {step_ratio}")
-print(f"rms error for this step ratio is {compute_err_dct_jpeg(X, step_ratio, step_table, C)}")
-Z = gen_Z_quant_dct_jpeg(X, step_table*step_ratio, C)
-print(f"Verify same rms error: {np.std(X-Z)}")
 
 X_quant_ent = entropy(quantise(X, 17))
-Yq = gen_Y_quant_dct_jpeg(X, step_table, C)
+Y = forward_dct_lbt(X, C8)
+Yq = quantise_jpeg(Y, step_table)
+Z = inverse_dct_lbt(Yq, C8)
 Yr = regroup(Yq, 8)
 Yr_ent = dctbpp(Yr, 8)
 comp_ratio = X_quant_ent / Yr_ent
-print(f"Comp. ratio: {comp_ratio}")
+rms_error = np.std(X-Z)
+print(comp_ratio, rms_error)

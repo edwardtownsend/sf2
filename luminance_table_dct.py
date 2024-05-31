@@ -11,7 +11,10 @@ from useful_functions import *
 
 # New functions to apply the JPEG DCT luminance quantisation table
 
-def quant1_jpeg(X, step_table, N=8):
+def quant1_jpeg(X, step_table):
+    N = step_table.shape[0]
+    if step_table.shape[0] != step_table.shape[1]:
+        raise ValueError('Step table array is not square!')
     if X.shape[0] != X.shape[1]:
         raise ValueError('Input array is not square!')
     if X.shape[0] % N != 0:
@@ -29,8 +32,8 @@ def quant1_jpeg(X, step_table, N=8):
 
     return q
 
-
-def quant2_jpeg(q, step_table, N=8):
+def quant2_jpeg(q, step_table):
+    N = step_table.shape[0]
     m = q.shape[0]
     Xq = np.zeros(q.shape)
 
@@ -42,48 +45,26 @@ def quant2_jpeg(q, step_table, N=8):
     
     return Xq
 
-def quantise_jpeg(x, step_table, N=8):
+def quantise_jpeg(X, step_table):
     # Perform both quantisation steps
-    y = quant2_jpeg(quant1_jpeg(x, step_table, N), step_table, N)
-    return y
+    Y = quant2_jpeg(quant1_jpeg(X, step_table), step_table)
+    return Y
 
-def gen_Y_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
+
+def compute_err_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
     When s = None we perform the DCT instead of the LBT.
     """
-    Y = colxfm(colxfm(X, C).T, C).T
-    Y = suppress_components(Y, C.shape[0], supp_comp_num)
+    Y = forward_dct_lbt(X, C, None, rise1_ratio, supp_comp_num)
     Yq = quantise_jpeg(Y, step_table)
+    Zp = inverse_dct_lbt(Yq, C, None, rise1_ratio, supp_comp_num)
 
-    return Yq
-
-def gen_Z_quant_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
-    """
-    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
-    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
-    When s = None we perform the DCT instead of the LBT.
-    """
-    Y = colxfm(colxfm(X, C).T, C).T
-    Y = suppress_components(Y, C.shape[0], supp_comp_num)
-    Yq = quantise_jpeg(Y, step_table)
-    Z = colxfm(colxfm(Yq.T, C.T).T, C.T)
- 
-    return Z
-
-def compute_err_dct_jpeg(X, step_ratio, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
-    """
-    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
-    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
-    When s = None we perform the DCT instead of the LBT.
-    """
-    step_table *= step_ratio
-    Zp = gen_Z_quant_dct_jpeg(X, step_table, C)
     return np.std(X-Zp)
 
 
-def find_step_ratio_equal_rms_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
+def find_ssr_equal_rms_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_comp_num=0):
     """
     Note C is the DCT matrix of coefficients, generated using dct_ii(N).
     C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
@@ -93,9 +74,9 @@ def find_step_ratio_equal_rms_dct_jpeg(X, step_table, C, rise1_ratio=0.5, supp_c
 
     # Binary search
     low, high = 0, 1
-    while high - low > 0.1:
+    while high - low > 0.05:
         mid = (low + high) / 2
-        err = compute_err_dct_jpeg(X, mid, step_table, C, rise1_ratio, supp_comp_num)
+        err = compute_err_dct_jpeg(X, mid*step_table, C, rise1_ratio, supp_comp_num)
 
         if err < target_err:
             low = mid
