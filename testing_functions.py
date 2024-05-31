@@ -7,8 +7,7 @@ from cued_sf2_lab.familiarisation import load_mat_img, plot_image
 from cued_sf2_lab.laplacian_pyramid import *
 from cued_sf2_lab.dct import dct_ii
 from front_end_schemes import *
-from useful_functions import *
-from luminance_table_dct import *
+from sf2.useful_functions import *
 
 def run_tests():
     test_results = []
