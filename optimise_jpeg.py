@@ -15,29 +15,33 @@ from skimage.metrics import structural_similarity as ssim
 
 def find_min_ssr_jpeg(X, step_table, C, s=None):
     # Binary search
+    def binary_search(ssr_low, ssr_high):
+        while ssr_high - ssr_low > 0.0001:
+            ssr_mid = (ssr_low + ssr_high) / 2
+
+            vlctemp, _ = jpegenc_dct_lbt(X, ssr_mid, step_table, C, s)
+            num_bits = vlctemp[:,1].sum()
+            print(num_bits)
+
+            if num_bits < 40960:
+                next_ssr_high = ssr_mid
+                next_high_vlctemp, _ = jpegenc_dct_lbt(X, next_ssr_high, step_table, C, s)
+                next_high_num_bits = next_high_vlctemp[:,1].sum() 
+                if next_high_num_bits > 40960:
+                    return ssr_mid
+                else:
+                    ssr_high = ssr_mid
+            else:
+                ssr_low = ssr_mid
+        
+        if num_bits > 40960:
+            return binary_search(ssr_low, ssr_high*2.0)
+        else:
+            return ssr_high
+    
     mean_step = np.mean(step_table)
     ssr_low, ssr_high = 0, 200 / mean_step
-
-    while ssr_high - ssr_low > 0.0001:
-        print(ssr_low, ssr_high)
-        ssr_mid = (ssr_low + ssr_high) / 2
-
-        vlctemp, _ = jpegenc_dct_lbt(X, ssr_mid, step_table, C, s)
-        num_bits = vlctemp[:,1].sum()
-        print(num_bits)
-
-        if num_bits < 40960:
-            next_ssr_high = ssr_mid
-            next_high_vlctemp, _ = jpegenc_dct_lbt(X, next_ssr_high, step_table, C, s)
-            next_high_num_bits = next_high_vlctemp[:,1].sum() 
-            if next_high_num_bits > 40960:
-                return ssr_mid
-            else:
-                ssr_high = ssr_mid
-        else:
-            ssr_low = ssr_mid
-    
-    return ssr_high
+    return binary_search(ssr_low, ssr_high)
 
 def compute_scores_dct_lbt(X, ssr, step_table, C, s=None):
     vlc, _ = jpegenc_dct_lbt(X, ssr, step_table, C, s)
@@ -80,7 +84,7 @@ def compress_1(X, step_table_type):
         plot_image(Z_lbt, ax=ax)
         plt.show()
 
-def compress_2(X, step_table_type):
+def compress_2(X, step_table_type, bot_freq, k=0):
     step_table = gen_step_table(step_table_type)
     C = dct_ii(8)
 
@@ -99,11 +103,10 @@ def compress_2(X, step_table_type):
 
     # Normalise energy_matrix to have mean of 1. Set k to vary the spread of energies. Smaller k, lower spread.
     zero_mean_arr = energy_arr - np.mean(energy_arr)
-    zero_mean_arr[:2, :2] = 0
-    k = 0.0000001
+    zero_mean_arr[:bot_freq, :bot_freq] = 0
     arr_shruken = zero_mean_arr * k
     norm_energy_arr = arr_shruken + 1.0
-    norm_energy_arr[:4, :4] = 1.0
+    norm_energy_arr[:bot_freq, :bot_freq] = 1.0
 
     step_table /= norm_energy_arr
     print(step_table)
@@ -116,6 +119,22 @@ def compress_2(X, step_table_type):
     
     print(rms_dct, ssim_dct, bits_dct)
 
-X_pre_zero_mean, _ = load_mat_img(img='lighthouse.mat', img_info='X')
+X_pre_zero_mean, _ = load_mat_img(img='images/lighthouse.mat', img_info='X')
 X = X_pre_zero_mean - 128.0
-compress_2(X, 0)
+Xb_pre_zero_mean, _ = load_mat_img(img='images/bridge.mat', img_info='X')
+Xb = Xb_pre_zero_mean - 128.0
+Xf_pre_zero_mean, _ = load_mat_img(img='images/flamingo.mat', img_info='X')
+Xf = Xf_pre_zero_mean - 128.0
+X_19_pre_zero_mean, _ = load_mat_img(img='images/2019.mat', img_info='X')
+X_19 = X_19_pre_zero_mean - 128.0
+X_20_pre_zero_mean, _ = load_mat_img(img='images/2020.mat', img_info='X')
+X_20 = X_20_pre_zero_mean - 128.0
+X_21_pre_zero_mean, _ = load_mat_img(img='images/2021.mat', img_info='X')
+X_21 = X_21_pre_zero_mean - 128.0
+X_22_pre_zero_mean, _ = load_mat_img(img='images/2022.mat', img_info='X')
+X_22 = X_22_pre_zero_mean - 128.0
+X_23_pre_zero_mean, _ = load_mat_img(img='images/2023.mat', img_info='X')
+X_23 = X_23_pre_zero_mean - 128.0
+
+# compress_1(Xb, 0)
+compress_1(X_22, 0)
