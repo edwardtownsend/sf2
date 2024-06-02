@@ -10,14 +10,13 @@ from cued_sf2_lab.jpeg import *
 from front_end_schemes import *
 from useful_functions import *
 
-def jpegenc_dct_lbt(X, ssr, step_table, C, s=None, N=8, M=8, opthuff=False, dcbits=8):
+def jpegenc_dct_lbt(X, step_table, C, s=None, N=8, M=8, opthuff=False, dcbits=8):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
     ### NEW CODE
     Y = forward_dct_lbt(X, C, s)
-    scaled_step_table = step_table * ssr
-    Yq = quant1_jpeg(Y, scaled_step_table).astype('int')
+    Yq = quant1_jpeg(Y, step_table).astype('int')
     ###
 
     scan = diagscan(M)
@@ -63,7 +62,7 @@ def jpegenc_dct_lbt(X, ssr, step_table, C, s=None, N=8, M=8, opthuff=False, dcbi
     
     return vlc, dhufftab
 
-def jpegdec_dct_lbt(vlc, ssr, step_table, C, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
+def jpegdec_dct_lbt(vlc, step_table, C, s=None, N=8, M=8, hufftab=None, dcbits=8, W=256, H=256):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
@@ -117,9 +116,74 @@ def jpegdec_dct_lbt(vlc, ssr, step_table, C, s=None, N=8, M=8, hufftab=None, dcb
             Zq[r:r+M, c:c+M] = yq
 
     ### NEW CODE
-    scaled_step_table = step_table * ssr
-    Zi = quant2_jpeg(Zq, scaled_step_table)
+    Zi = quant2_jpeg(Zq, step_table)
     Zp = inverse_dct_lbt(Zi, C, s)
     ###
     
     return Zp
+
+def jpegenc_dwt(X, num_levels, N=8, M=8, opthuff=False, dcbits=8):
+    if M % N != 0:
+        raise ValueError('M must be an integer multiple of N!')
+
+    ### NEW CODE
+    Yq_dwt = gen_Y_dwt_equal_mse(X, num_levels)[0]
+    Yq = dwtgroup(Yq_dwt, num_levels)
+    ###
+
+    scan = diagscan(M)
+    dhufftab = huffdflt(1)
+    huffcode, ehuf = huffgen(dhufftab)
+
+    sy = Yq.shape
+    huffhist = np.zeros(16 ** 2)
+    vlc = []
+    for r in range(0, sy[0], M):
+        for c in range(0, sy[1], M):
+            yq = Yq[r:r+M,c:c+M]
+            if M > N:
+                yq = regroup(yq, N)
+            yqflat = yq.flatten('F')
+
+            ### NEW/MODIFIED CODE
+            dccoef = yqflat[0]
+            max_dccoef = np.max(np.abs(Yq))
+            dccoef_normalized = int((dccoef / max_dccoef) * (2 ** (dcbits - 1)))
+            dccoef_final = dccoef_normalized + 2 ** (dcbits - 1)
+            
+            if dccoef_final not in range(2**dcbits):
+                raise ValueError('DC coefficients too large for desired number of bits')
+            vlc.append(np.array([[dccoef_final, dcbits]]))
+            ###
+
+            ra1 = runampl(yqflat[scan])
+            vlc.append(huffenc(huffhist, ra1, ehuf))
+
+    vlc = np.concatenate([np.zeros((0, 2), dtype=np.intp)] + vlc)
+
+    if opthuff:
+        dhufftab = huffdes(huffhist)
+        huffcode, ehuf = huffgen(dhufftab)
+
+        huffhist = np.zeros(16 ** 2)
+        vlc = []
+        for r in range(0, sy[0], M):
+            for c in range(0, sy[1], M):
+                yq = Yq[r:r+M, c:c+M]
+                if M > N:
+                    yq = regroup(yq, N)
+                yqflat = yq.flatten('F')
+
+                ### NEW CODE
+                dccoef = yqflat[0]
+                dccoef_normalized = int((dccoef / max_dccoef) * (2 ** (dcbits - 1)))
+                dccoef_final = dccoef_normalized + 2 ** (dcbits - 1)
+                vlc.append(np.array([[dccoef_final, dcbits]]))
+                ###
+
+                ra1 = runampl(yqflat[scan])
+                vlc.append(huffenc(huffhist, ra1, ehuf))
+                
+        vlc = np.concatenate([np.zeros((0, 2), dtype=np.intp)] + vlc)
+
+    return vlc, dhufftab

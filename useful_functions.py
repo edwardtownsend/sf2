@@ -18,6 +18,42 @@ def entropy(X):
     return bpp(X) * X.size
 
 # DCT/LBT functions
+# Forward and inverse DCT/LBT, set s=None to generate DCT
+def forward_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    """
+    Note C is the DCT matrix of coefficients, generated using dct_ii(N).
+    C is input paramter instead of block_size to avoid having to re-compute C in every function when one function calls another.
+    When s = None we perform the DCT instead of the LBT.
+    """
+    if s == None:
+        Xp = X
+    else:
+        N = C.shape[0]
+        Pf, Pr = pot_ii(N, s)
+        t = np.s_[N//2:-N//2]
+        Xp = X.copy()
+        Xp[t, :] = colxfm(Xp[t, :], Pf)
+        Xp[:, t] = colxfm(Xp[:, t].T, Pf).T
+
+    Y = colxfm(colxfm(Xp, C).T, C).T
+    Y = suppress_components(Y, C.shape[0], supp_comp_num)
+
+    return Y
+
+def inverse_dct_lbt(Y, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
+    Z = colxfm(colxfm(Y.T, C.T).T, C.T)
+    
+    if s == None:
+        return Z
+    else:
+        N = C.shape[0]
+        Pf, Pr = pot_ii(N, s)
+        t = np.s_[N//2:-N//2]
+        Zp = Z.copy()
+        Zp[:, t] = colxfm(Zp[:, t].T, Pr.T).T
+        Zp[t, :] = colxfm(Zp[t, :], Pr.T)
+        return Zp
+    
 def dctbpp(Yr, N):
     m, n = Yr.shape
     if m % N != 0 or n % N != 0:
@@ -165,6 +201,24 @@ def suppress_components(Y, block_size, num_components):
 
 
 # DWT functions
+def nlevdwt(X, n):
+    Y = X.copy()
+    m = X.shape[0]
+    for i in range(n):
+        Y[:m,:m] = dwt(Y[:m,:m])
+        m //= 2
+    
+    return Y
+
+def nlevidwt(Y, n):
+    m = Y.shape[0] // (2 ** (n - 1))
+    Z = Y.copy()
+    for i in range(n):
+        Z[:m,:m] = idwt(Z[:m,:m])
+        m = m * 2
+
+    return Z
+
 def quantdwt(Y: np.ndarray, dwtstep: np.ndarray):
     Yq = Y.copy()
     dwtent = np.zeros(dwtstep.shape)
@@ -249,7 +303,6 @@ def find_step_equal_rms_dwt(X, n_levels, ssr_list):
     return (low + high) / 2
 
 # Step table DCT functions
-
 def gen_step_table(step_table_type):
     """
     0 = JPEG luminance table (p147)
