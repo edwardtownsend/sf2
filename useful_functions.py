@@ -18,6 +18,7 @@ def entropy(X):
     return bpp(X) * X.size
 
 # DCT/LBT functions
+
 # Forward and inverse DCT/LBT, set s=None to generate DCT
 def forward_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
     """
@@ -122,21 +123,9 @@ def find_step_equal_rms_dct_lbt(X, C, s=None, rise1_ratio=0.5, supp_comp_num=0):
 
     return (low + high) / 2    
 
-data = [
-    [16, 11, 10, 16, 124, 140, 151, 161],
-    [12, 12, 14, 19, 126, 158, 160, 155],
-    [14, 13, 16, 24, 140, 157, 169, 156],
-    [14, 17, 22, 29, 151, 187, 180, 162],
-    [18, 22, 37, 56, 168, 109, 103, 177],
-    [24, 35, 55, 64, 181, 104, 113, 192],
-    [49, 64, 78, 87, 103, 121, 120, 101],
-    [72, 92, 95, 98, 112, 100, 103, 199]
-]
-
-
 def suppress_components(Y, block_size, num_components):
     """
-    Sets elements in Yq to zero in a zig-zag pattern based upon the JPEG documentation.
+    Sets elements in Yq to zero in a zig-zag pattern adapted from the JPEG documentation.
 
     Algorithm:
     The function iterates through the array Yq in a predefined pattern based on the direction:
@@ -324,6 +313,45 @@ def gen_step_table(step_table_type):
     elif step_table_type == 1:
         step_table = np.ones((8, 8), dtype=np.float64)
 
+    # BF table found for Xb
+    elif step_table_type == 2:
+        step_table = np.array([
+                    [3.,  9., 13., 12., 21., 33., 57., 54.],
+                    [12., 12., 14., 19., 26., 51., 53., 55.],
+                    [14., 13., 16., 24., 37., 60., 69., 56.],
+                    [14., 17., 22., 29., 51., 87., 80., 62.],
+                    [18., 22., 37., 56., 68., 109., 103., 77.],
+                    [24., 33., 57., 64., 81., 104., 113., 92.],
+                    [50., 63., 78., 87., 103., 121., 120., 101.],
+                    [72., 92., 95., 98., 112., 100., 103., 99.]
+                    ], dtype=np.float64)
+    
+    # Novel quantisation table proposed by Fu
+    elif step_table_type == 3:
+        step_table = np.array([
+                    [4, 6, 7, 8, 10, 13, 18, 31],
+                    [6, 9, 10, 12, 15, 20, 28, 48],
+                    [7, 10, 12, 14, 18, 23, 32, 55],
+                    [8, 12, 14, 17, 21, 27, 38, 65],
+                    [10, 15, 18, 21, 26, 33, 47, 80],
+                    [13, 20, 23, 27, 33, 43, 61, 103],
+                    [18, 28, 32, 38, 47, 61, 86, 146],
+                    [31, 48, 55, 65, 80, 103, 146, 250]
+                    ], dtype=np.float64)
+    
+    # Experimentation table
+    elif step_table_type == 4:
+        step_table = np.array([
+                    [4, 6, 7, 8, 10, 13, 18, 31],
+                    [6, 9, 10, 12, 15, 20, 28, 48],
+                    [7, 10, 12, 14, 18, 23, 32, 55],
+                    [8, 12, 14, 17, 21, 27, 38, 65],
+                    [10, 15, 18, 21, 26, 33, 47, 80],
+                    [13, 20, 23, 27, 33, 43, 61, 103],
+                    [18, 28, 32, 38, 47, 61, 86, 146],
+                    [28, 48, 55, 65, 80, 103, 146, 250]
+                    ], dtype=np.float64)
+    
     else:
         raise ValueError(f'Invalid step table: step_table_type = {step_table_type}!')
 

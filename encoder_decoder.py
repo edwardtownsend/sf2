@@ -10,13 +10,14 @@ from cued_sf2_lab.jpeg import *
 from front_end_schemes import *
 from useful_functions import *
 
-def jpegenc_dct_lbt(X, step_table, C, s=None, N=8, M=8, opthuff=False, dcbits=8):
+def jpegenc_dct_lbt(X, step_table, C, s=None, N=8, M=8, opthuff=False, dcbits=8, supp_comp_num=0):
     if M % N != 0:
         raise ValueError('M must be an integer multiple of N!')
 
     ### NEW CODE
     Y = forward_dct_lbt(X, C, s)
-    Yq = quant1_jpeg(Y, step_table).astype('int')
+    Yq_unsupp = quant1_jpeg(Y, step_table).astype('int')
+    Yq = suppress_components(Yq_unsupp, N, supp_comp_num)
     ###
 
     scan = diagscan(M)
