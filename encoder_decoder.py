@@ -1,11 +1,6 @@
-import warnings
-import inspect
 import numpy as np
-import matplotlib.pyplot as plt
-from cued_sf2_lab.familiarisation import load_mat_img, plot_image
 from cued_sf2_lab.laplacian_pyramid import *
 from cued_sf2_lab.dct import *
-from cued_sf2_lab.bitword import bitword
 from cued_sf2_lab.jpeg import *
 from front_end_schemes import *
 from useful_functions import *
